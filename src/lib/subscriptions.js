@@ -364,7 +364,7 @@ async function detectOpenclawSessionIntegration({ home, env }) {
   };
 }
 
-function readClaudeCodeAccessToken({ platform = process.platform, securityRunner, home, fsReader } = {}) {
+function readStoredClaudeCodeAccessToken({ platform = process.platform, securityRunner, home, fsReader } = {}) {
   if (platform === "darwin") {
     for (const service of CLAUDE_CODE_KEYCHAIN_SERVICES) {
       try {
@@ -391,6 +391,18 @@ function readClaudeCodeAccessToken({ platform = process.platform, securityRunner
   } catch (_e) {
     return null;
   }
+}
+
+// `claude setup-token` long-lived tokens only reach the CLI via the
+// CLAUDE_CODE_OAUTH_TOKEN env var — they never land in the Keychain or
+// .credentials.json (issue #486). When stored credentials yield no token, fall
+// back to it so users on that workaround keep a working LIMITS panel instead of
+// a dead Claude section with a "Re-auth" badge. Stored credentials still win so
+// existing setups behave exactly as before.
+function readClaudeCodeAccessToken({ env = process.env, ...rest } = {}) {
+  const stored = readStoredClaudeCodeAccessToken(rest);
+  if (stored) return stored;
+  return normalizeString(env?.CLAUDE_CODE_OAUTH_TOKEN);
 }
 
 async function readCodexAccessToken({ home, env } = {}) {

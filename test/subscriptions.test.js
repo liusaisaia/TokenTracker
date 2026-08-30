@@ -406,6 +406,85 @@ test("Claude Code credential helpers default to the current platform", async () 
   }
 });
 
+test("readClaudeCodeAccessToken prefers stored credentials over CLAUDE_CODE_OAUTH_TOKEN", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "tokentracker-subscriptions-claude-env-"));
+
+  try {
+    const runner = (cmd, args) => {
+      const service = args?.[args.indexOf("-s") + 1] || "";
+      if (cmd !== "/usr/bin/security" || service !== "Claude Code-credentials") {
+        return { status: 1 };
+      }
+      return {
+        status: 0,
+        stdout: JSON.stringify({ claudeAiOauth: { accessToken: "darwin-stored-token" } }),
+      };
+    };
+    assert.equal(
+      readClaudeCodeAccessToken({ platform: "darwin", securityRunner: runner, env: { CLAUDE_CODE_OAUTH_TOKEN: "env-token" } }),
+      "darwin-stored-token",
+    );
+
+    await writeJson(path.join(tmp, ".claude", ".credentials.json"), {
+      claudeAiOauth: { accessToken: "file-stored-token" },
+    });
+    assert.equal(
+      readClaudeCodeAccessToken({ platform: "linux", home: tmp, env: { CLAUDE_CODE_OAUTH_TOKEN: "env-token" } }),
+      "file-stored-token",
+    );
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test("readClaudeCodeAccessToken falls back to CLAUDE_CODE_OAUTH_TOKEN when stored credentials yield no token", async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "tokentracker-subscriptions-claude-env-"));
+
+  try {
+    // No stored credentials are reachable on this platform path.
+    assert.equal(
+      readClaudeCodeAccessToken({ platform: "sunos", env: { CLAUDE_CODE_OAUTH_TOKEN: "env-token" } }),
+      "env-token",
+    );
+    assert.equal(readClaudeCodeAccessToken({ platform: "sunos", env: {} }), null);
+
+    // macOS keychain entry blanked in place by an expired login (issue #486).
+    const runner = (cmd, args) => {
+      const service = args?.[args.indexOf("-s") + 1] || "";
+      if (cmd !== "/usr/bin/security" || service !== "Claude Code-credentials") {
+        return { status: 1 };
+      }
+      return {
+        status: 0,
+        stdout: JSON.stringify({ claudeAiOauth: { accessToken: storedAccessToken } }),
+      };
+    };
+    let storedAccessToken = "";
+    assert.equal(
+      readClaudeCodeAccessToken({ platform: "darwin", securityRunner: runner, env: { CLAUDE_CODE_OAUTH_TOKEN: "env-token" } }),
+      "env-token",
+    );
+
+    // Credentials file blanked in place, or absent entirely.
+    await writeJson(path.join(tmp, ".claude", ".credentials.json"), {
+      claudeAiOauth: { accessToken: "" },
+    });
+    assert.equal(
+      readClaudeCodeAccessToken({ platform: "linux", home: tmp, env: { CLAUDE_CODE_OAUTH_TOKEN: "env-token" } }),
+      "env-token",
+    );
+
+    const emptyHome = path.join(tmp, "empty-home");
+    await fs.mkdir(emptyHome, { recursive: true });
+    assert.equal(
+      readClaudeCodeAccessToken({ platform: "linux", home: emptyHome, env: { CLAUDE_CODE_OAUTH_TOKEN: "env-token" } }),
+      "env-token",
+    );
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test("collectLocalSubscriptions does not read ~/.claude/.credentials.json on unsupported platforms", async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "tokentracker-subscriptions-claude-other-"));
 

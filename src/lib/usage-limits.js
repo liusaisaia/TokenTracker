@@ -3133,7 +3133,7 @@ async function fetchUsageLimitsUncached({
   const nowMs = Date.now();
 
   const [claudeToken, claudeSubscription, codexAuth] = await Promise.all([
-    Promise.resolve().then(() => readClaudeCodeAccessToken({ platform, securityRunner, home })),
+    Promise.resolve().then(() => readClaudeCodeAccessToken({ platform, securityRunner, home, env })),
     Promise.resolve().then(() => detectClaudeCodeSubscriptionDetails({ platform, securityRunner, home })),
     readCodexAuthBundle({ home, env }),
   ]);
