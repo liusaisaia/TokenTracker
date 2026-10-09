@@ -1,0 +1,19 @@
+src/lib/rollout.js
+  s_a54982e6a59625::t_22814232cf6e15 15970-15990
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "836ef7aa84624884ade4b89fb7f23df32c323f5c",
+  "prompts": {},
+  "sessions": {
+    "s_a54982e6a59625": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "sess_4b662db3-9738-4c4b-8fa6-4a8ab1876b48",
+        "model": "unknown"
+      },
+      "human_author": "liusaisaia <liusaisaia@users.noreply.github.com>"
+    }
+  }
+}
